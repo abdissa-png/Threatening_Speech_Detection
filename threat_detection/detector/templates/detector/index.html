@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real-Time Threat Detection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background: #f0f2f5;
+        }
+
+        .status-container {
+            text-align: center;
+            padding: 2rem;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .indicator {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            margin: 1rem auto;
+            transition: all 0.3s ease;
+            background: #e0e0e0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .indicator::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .threat { background: #ff4444; animation: pulse 1.5s infinite; }
+        .safe { background: #00c851; }
+        .processing { background: #ffbb33; }
+        .disabled { background: #e0e0e0; }
+
+        button {
+            padding: 0.8rem 2rem;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #2196F3;
+            color: white;
+            margin: 1rem 0;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+        }
+
+        button:disabled {
+            background: #90CAF9;
+            cursor: not-allowed;
+        }
+
+        .status-text {
+            margin: 1rem 0;
+            font-size: 1.2rem;
+            color: #666;
+        }
+
+        .visualization {
+            width: 100%;
+            height: 100px;
+            margin: 2rem 0;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(0.95); }
+        }
+
+        .system-status {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .status-item {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            background: #f8f9fa;
+            font-size: 0.9rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #eee;
+            border-radius: 4px;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+
+        .progress {
+            width: 0%;
+            height: 100%;
+            background: #2196F3;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="status-container">
+        <h1>Voice Threat Detection</h1>
+        
+        <div class="system-status">
+            <div class="status-item" id="connectionStatus">🔴 Offline</div>
+            <div class="status-item" id="micStatus">🎤 Disabled</div>
+            <div class="status-item" id="modelStatus">🤖 Loading</div>
+        </div>
+
+        <div class="indicator" id="status"></div>
+        <div class="progress-bar"><div class="progress" id="progress"></div></div>
+        
+        <div class="status-text" id="statusText">Click start to begin monitoring</div>
+        <button id="toggleBtn">Start Monitoring</button>
+
+        <canvas class="visualization" id="waveform"></canvas>
+    </div>
+
+    <script>
+        function encodeWAV(samples) {
+            const buffer = new ArrayBuffer(44 + samples.length * 2);
+            const view = new DataView(buffer);
+        
+            // WAV header
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + samples.length * 2, true); // file length
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true); // PCM format
+            view.setUint16(20, 1, true); // linear quantization
+            view.setUint16(22, 1, true); // mono
+            view.setUint32(24, 16000, true); // sample rate
+            view.setUint32(28, 16000 * 2, true); // byte rate
+            view.setUint16(32, 2, true); // block align
+            view.setUint16(34, 16, true); // bits per sample
+            writeString(view, 36, 'data');
+            view.setUint32(40, samples.length * 2, true);
+        
+            // Convert to 16-bit PCM
+            floatTo16BitPCM(view, 44, samples);
+            
+            return new Blob([view], { type: 'audio/wav' });
+        }
+        
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+        
+        function floatTo16BitPCM(output, offset, input) {
+            for (let i = 0; i < input.length; i++, offset += 2) {
+                const s = Math.max(-1, Math.min(1, input[i]));
+                output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            }
+        }
+        // Add this worklet code directly in the template
+        const workletCode = `
+            class AudioProcessor extends AudioWorkletProcessor {
+                process(inputs) {
+                    const input = inputs[0];
+                    if (input?.[0]) {
+                        this.port.postMessage(input[0]);
+                    }
+                    return true;
+                }
+            }
+            registerProcessor('audio-processor', AudioProcessor);
+        `;
+
+        const statusDiv = document.getElementById('status');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const statusText = document.getElementById('statusText');
+        const progress = document.getElementById('progress');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const micStatus = document.getElementById('micStatus');
+        const modelStatus = document.getElementById('modelStatus');
+        const canvas = document.getElementById('waveform');
+        const ctx = canvas.getContext('2d');
+        
+        let audioContext, processor, socket, analyser, animationFrame;
+        let audioBuffer = [];
+        // Initialize audio visualization
+        function initVisualization() {
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            function draw() {
+                animationFrame = requestAnimationFrame(draw);
+                analyser.getByteTimeDomainData(dataArray);
+                
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.beginPath();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#2196F3';
+
+                const sliceWidth = canvas.width * 1.0 / bufferLength;
+                let x = 0;
+
+                for(let i = 0; i < bufferLength; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * canvas.height / 2;
+
+                    if(i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+
+                    x += sliceWidth;
+                }
+
+                ctx.lineTo(canvas.width, canvas.height/2);
+                ctx.stroke();
+            }
+
+            draw();
+        }
+
+        async function startMonitoring() {
+            try {
+
+                // Update UI states
+                toggleBtn.disabled = true;
+                statusText.textContent = "Initializing...";
+                progress.style.width = '0%';
+
+                // Initialize WebSocket
+                socket = new WebSocket(`ws://${window.location.host}/ws/detect/`);
+                
+                // WebSocket event handlers
+                socket.onopen = () => {
+                    connectionStatus.textContent = "🟢 Connected";
+                    modelStatus.textContent = "🤖 Ready";
+                };
+                
+                socket.onerror = () => {
+                    connectionStatus.textContent = "🔴 Connection Error";
+                };
+
+                // Get microphone access
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                micStatus.textContent = "🎤 Active";
+                
+                // Initialize audio context
+                audioContext = new AudioContext({ sampleRate: 16000 });
+                initVisualization();
+                
+                // Create audio processing chain
+                const source = audioContext.createMediaStreamSource(stream);
+                source.connect(analyser);
+                
+                // Create blob URL for the worklet
+                const workletBlob = new Blob([workletCode], {type: 'text/javascript'});
+                const workletUrl = URL.createObjectURL(workletBlob);
+
+                // Load the worklet
+                await audioContext.audioWorklet.addModule(workletUrl);
+                const processor = new AudioWorkletNode(audioContext, 'audio-processor');
+                
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+                
+                processor.port.onmessage = (e) => {
+                    const audioData = e.data;
+                    audioBuffer.push(...audioData);
+    
+                    // Check if the buffer has at least 3 seconds of audio (3 * 16000 samples)
+                    if (audioBuffer.length >= 3 * 16000) {
+                        const chunk = audioBuffer.slice(0, 3 * 16000);
+                        audioBuffer = audioBuffer.slice(3 * 16000);
+                        const wavBuffer = encodeWAV(chunk);
+                        
+                        // Send data and update progress
+                        if (socket.readyState === WebSocket.OPEN) {
+                            socket.send(wavBuffer);
+                            progress.style.width = `${(performance.now() % 2000)/20}%`;
+                        }
+                    }
+                };
+
+                // Handle responses
+                socket.onmessage = (e) => {
+                    const result = JSON.parse(e.data).result;
+                    statusDiv.className = result.toLowerCase();
+                    statusText.textContent = result === 'Threat' 
+                        ? "Potential threat detected!" 
+                        : "No threat detected";
+                };
+
+                toggleBtn.disabled = false;
+                toggleBtn.textContent = "Stop Monitoring";
+                statusText.textContent = "Monitoring audio...";
+            } catch (error) {
+                console.error(error);
+                statusText.textContent = "Error initializing audio: " + error.message;
+                toggleBtn.disabled = false;
+            }
+        }
+
+        function stopMonitoring() {
+            if (audioContext) audioContext.close();
+            if (socket) socket.close();
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+            
+            statusDiv.className = 'disabled';
+            toggleBtn.textContent = "Start Monitoring";
+            statusText.textContent = "Monitoring stopped";
+            progress.style.width = '0%';
+            micStatus.textContent = "🎤 Disabled";
+            connectionStatus.textContent = "🔴 Offline";
+        }
+
+        // Audio encoding functions remain the same
+        // ... (keep existing encodeWAV, writeString, floatTo16BitPCM functions)
+
+        // Feature detection
+        if (!navigator.mediaDevices) {
+            statusText.textContent = "Audio API not supported in this browser";
+            toggleBtn.disabled = true;
+        }
+
+        if (!window.WebSocket) {
+            statusText.textContent = "WebSocket not supported in this browser";
+            toggleBtn.disabled = true;
+        }
+
+        toggleBtn.onclick = () => {
+            if (!audioContext || audioContext.state === 'closed') {
+                startMonitoring();
+            } else {
+                stopMonitoring();
+            }
+        };
+    </script>
+</body>
+</html>
