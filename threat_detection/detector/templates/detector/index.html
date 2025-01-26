@@ -250,7 +250,7 @@
                 progress.style.width = '0%';
 
                 // Initialize WebSocket
-                socket = new WebSocket(`ws://${window.location.host}/ws/detect/`);
+                socket = new WebSocket(`wss://${window.location.host}/ws/detect/`);
                 
                 // WebSocket event handlers
                 socket.onopen = () => {
