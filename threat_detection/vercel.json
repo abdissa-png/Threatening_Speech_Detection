@@ -1,0 +1,29 @@
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "threat_detection/wsgi.py",
+        "use": "@vercel/python",
+        "config": { "maxLambdaSize": "50mb" }
+      },
+      {
+        "src": "threat_detection/static/**/*",
+        "use": "@vercel/static"
+      }
+    ],
+    "routes": [
+      {
+        "src": "/static/(.*)",
+        "dest": "/threat_detection/static/$1"
+      },
+      {
+        "src": "/(.*)",
+        "dest": "threat_detection/wsgi.py"
+      }
+    ],
+    "env": {
+      "DJANGO_SETTINGS_MODULE": "threat_detection.settings",
+      "SECRET_KEY": "your-secret-key",
+      "DEBUG": "true"
+    }
+  }
