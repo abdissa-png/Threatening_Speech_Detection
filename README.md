@@ -99,4 +99,8 @@ This project is a real-time voice threat detection system built using Django, Dj
 1. **Access the application**: Open your browser and navigate to http://localhost:8000.
 2. **Start Monitoring**: Click the "Start Monitoring" button to begin capturing and processing audio.
 3. **View Results**: The application will display the classification result ("Threat" or "Non-Threat") in real-time.
-  
+
+### LINKS
+1. Model training file link: [Model Training](https://drive.google.com/drive/u/4/folders/1p5CwPzPWm_trIIQAsISkecDjUupnHk-g)
+2. Github repository: [Github Repository](https://github.com/abdissa-png/Threatening_Speech_Detection)
+3. Deployed end point: [Threatening Speech Detection](https://threatening-speech-detection-8vtd.onrender.com)
