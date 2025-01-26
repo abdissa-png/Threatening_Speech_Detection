@@ -10,5 +10,6 @@ scipy==1.11.3
 tensorflow-hub==0.14.0
 channels==4.0.0
 daphne==4.0.0
+distutils==0.1.0
 uvicorn==0.23.2
 channels-redis==4.1.0  # Required for Redis channel layer
