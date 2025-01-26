@@ -4,7 +4,7 @@ tensorflow==2.18.0  # Use CPU version for smaller image
 librosa==0.10.1
 numpy
 gunicorn==21.2.0
-psycopg2-binary==2.9.7  # For PostgreSQL support
+# psycopg2-binary==2.9.7  # For PostgreSQL support
 python-dotenv==1.0.0
 sounddevice==0.4.6
 scipy==1.11.3
