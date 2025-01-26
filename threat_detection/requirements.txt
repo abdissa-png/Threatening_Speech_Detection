@@ -1,5 +1,5 @@
 Django==4.2.7
-tensorflow-cpu==2.13.0  # Use CPU version for smaller image
+tensorflow==2.18.0  # Use CPU version for smaller image
 librosa==0.10.1
 numpy==1.24.4
 gunicorn==21.2.0
