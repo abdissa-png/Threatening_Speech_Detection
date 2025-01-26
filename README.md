@@ -64,10 +64,10 @@ This project is a real-time voice threat detection system built using Django, Dj
 
 1. **Clone the repository**:
 
-   ```bash
-   git clone https://github.com/yourusername/threat_detection.git
-   cd threat_detection
-   ```
+ ```bash
+ git clone https://github.com/yourusername/threat_detection.git
+ cd threat_detection
+ ```
 2. **Install dependencies**:
 
   ```bash
