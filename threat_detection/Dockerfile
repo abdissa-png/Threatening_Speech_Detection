@@ -14,7 +14,6 @@ RUN apt-get update && apt-get install -y python3-distutils python3-pip && pip in
 
 COPY . .
 
-# Remove Redis installation commands (handled by Railway plugin)
-# Keep these commands in your local setup only
+ENV DJANGO_SETTINGS_MODULE=threat_detection.settings
 
 CMD ["sh", "start.sh"]
