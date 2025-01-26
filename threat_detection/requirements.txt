@@ -1,4 +1,4 @@
-distutils==0.1.0
+setuptools==57.5.0
 Django==4.2.7
 tensorflow==2.18.0  # Use CPU version for smaller image
 librosa==0.10.1
